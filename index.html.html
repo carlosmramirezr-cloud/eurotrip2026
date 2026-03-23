@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🌍 Eurotrip '26 — Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+    :root {
+      --bg:        #09090F;
+      --surface:   #111219;
+      --surface-2: #181922;
+      --surface-3: #1E2030;
+      --border:    rgba(255,255,255,.065);
+      --border-hi: rgba(255,255,255,.12);
+      --text:      #EDEAE0;
+      --muted:     rgba(237,234,224,.35);
+      --muted-hi:  rgba(237,234,224,.58);
+      --accent:    #F5A623;
+      --accent-d:  rgba(245,166,35,.12);
+      --accent-b:  rgba(245,166,35,.32);
+      --green:     #06D6A0;
+      --blue:      #4FC3F7;
+      --orange:    #FF7849;
+      --purple:    #9B89FF;
+      --nav-h:     68px;
+      --hdr-h:     54px;
+    }
+
+    html { scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+    body {
+      font-family:'Syne',sans-serif;
+      background:var(--bg); color:var(--text);
+      min-height:100dvh;
+      padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));
+      overflow-x:hidden;
+    }
+
+    #loadBar {
+      position:fixed; top:0; left:0; height:2px; z-index:9999;
+      background:linear-gradient(90deg,var(--accent),#FF7849);
+      animation:ldBar .8s cubic-bezier(.4,0,.2,1) forwards;
+    }
+    @keyframes ldBar { from{width:0;opacity:1} to{width:100%;opacity:0} }
+
+    /* HEADER */
+    .app-hdr {
+      position:sticky; top:0; z-index:200; height:var(--hdr-h);
+      display:flex; align-items:center; gap:8px; padding:0 13px;
+      background:rgba(9,9,15,.94);
+      backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--border); overflow:hidden;
+    }
+    .hdr-text { min-width:0; flex:1; overflow:hidden; }
+    .hdr-logo { font-size:.95rem; font-weight:800; letter-spacing:-.02em; color:var(--accent); white-space:nowrap; }
+    .hdr-sub  { font-family:'Space Mono',monospace; font-size:.48rem; color:var(--muted); letter-spacing:.07em; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:42vw; }
+    .hdr-budget {
+      margin-left:auto; font-family:'Space Mono',monospace; font-size:.62rem;
+      background:var(--accent-d); color:var(--accent);
+      border:1px solid var(--accent-b); border-radius:20px; padding:4px 10px;
+      white-space:nowrap; transition:all .25s; flex-shrink:0;
+    }
+
+    /* FILTER TABS */
+    .filter-bar {
+      position:sticky; top:var(--hdr-h); z-index:150;
+      display:flex; gap:5px; padding:8px 12px;
+      background:rgba(9,9,15,.94);
+      backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+      border-bottom:1px solid var(--border);
+    }
+    .ftab {
+      flex:1; padding:9px 4px; border-radius:10px;
+      border:1px solid var(--border); background:var(--surface); color:var(--muted);
+      font-family:'Syne',sans-serif; font-size:.66rem; font-weight:700;
+      cursor:pointer; transition:all .16s; line-height:1.3; text-align:center;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .ftab .ftab-count { display:block; font-family:'Space Mono',monospace; font-size:.53rem; margin-top:1px; opacity:.7; }
+    .ftab.active-all    { background:var(--accent-d); border-color:var(--accent-b); color:var(--accent); }
+    .ftab.active-carlos { background:rgba(79,195,247,.1); border-color:rgba(79,195,247,.28); color:var(--blue); }
+    .ftab.active-amigos { background:rgba(255,120,73,.1); border-color:rgba(255,120,73,.28); color:var(--orange); }
+
+    /* TAB VIEWS */
+    .tab-view { display:none; }
+    .tab-view.active { display:block; animation:fadeUp .2s ease; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+    .sec-hd { padding:16px 15px 10px; display:flex; align-items:flex-end; justify-content:space-between; }
+    .sec-title { font-size:1.5rem; font-weight:800; letter-spacing:-.03em; line-height:1; }
+    .sec-meta  { font-family:'Space Mono',monospace; font-size:.58rem; color:var(--muted); letter-spacing:.1em; }
+
+    .chip-row { display:flex; gap:5px; overflow-x:auto; padding:0 12px 12px; scrollbar-width:none; }
+    .chip-row::-webkit-scrollbar { display:none; }
+    .stat-chip {
+      flex-shrink:0; background:var(--surface); border:1px solid var(--border);
+      border-radius:8px; padding:5px 10px; font-size:.62rem; display:flex; align-items:center; gap:5px;
+    }
+    .stat-chip b { font-family:'Space Mono',monospace; color:var(--accent); }
+
+    /* CARDS */
+    .cards-wrap { padding:0 10px 16px; display:flex; flex-direction:column; gap:6px; }
+    .day-card.hidden { display:none; }
+
+    .day-card {
+      border-radius:13px; background:var(--surface);
+      border:1px solid var(--border);
+      overflow:hidden; transition:border-color .2s, box-shadow .2s;
+      animation:slideUp .4s ease both;
+    }
+    .day-card.open { border-color:var(--border-hi); }
+    @keyframes slideUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+    .day-card.modal-group       { border-top:2px solid rgba(6,214,160,.38); }
+    .day-card.modal-split       { border-top:2px solid rgba(155,137,255,.5); }
+    .day-card.modal-solo-carlos { border-top:2px solid rgba(79,195,247,.5); }
+    .day-card.modal-solo-amigos { border-top:2px solid rgba(255,120,73,.45); background:rgba(255,120,73,.025); }
+
+    .day-card.special-boda      { border-color:rgba(245,166,35,.3)!important; box-shadow:0 0 22px rgba(245,166,35,.06); }
+    .day-card.special-reencuentro { border-color:rgba(155,137,255,.38)!important; animation:slideUp .4s ease both, glowP 2.4s infinite alternate; }
+    @keyframes glowP { from{box-shadow:0 0 8px rgba(155,137,255,.05)} to{box-shadow:0 0 26px rgba(155,137,255,.18)} }
+
+    /* CARD HEADER */
+    .card-hd {
+      display:flex; align-items:center; gap:10px; padding:11px 12px;
+      cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;
+    }
+    .day-badge {
+      flex-shrink:0; width:42px; height:42px; border-radius:11px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    }
+    .badge-num { font-family:'Space Mono',monospace; font-size:.86rem; font-weight:700; line-height:1; }
+    .badge-dt  { font-family:'Space Mono',monospace; font-size:.44rem; opacity:.5; letter-spacing:.04em; }
+
+    .card-info { flex:1; min-width:0; }
+    .modal-tag {
+      display:inline-flex; align-items:center; gap:3px;
+      font-size:.58rem; font-weight:700; letter-spacing:.06em;
+      padding:2px 7px; border-radius:5px; margin-bottom:4px; text-transform:uppercase;
+    }
+    .special-badge {
+      display:inline-block; font-size:.6rem; font-weight:700; letter-spacing:.08em;
+      padding:2px 8px; border-radius:5px; margin-bottom:4px; margin-right:4px;
+      background:var(--accent-d); color:var(--accent); border:1px solid var(--accent-b); text-transform:uppercase;
+    }
+    .special-badge.reunion { background:rgba(155,137,255,.12); color:var(--purple); border-color:rgba(155,137,255,.3); }
+    .card-act { font-size:.72rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:calc(100vw - 190px); }
+
+    /* DUAL COST — toggle via CSS class on .cards-wrap */
+    .card-cost { flex-shrink:0; text-align:right; }
+    .cost-wrap  { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+
+    /* DUAL COST — only show in carlos/amigos views, hide in general */
+    .cost-carlos-val { display:none; }
+    .cost-amigos-val { display:none; }
+    .cards-wrap.vw-carlos .cost-carlos-val { display:inline; }
+    .cards-wrap.vw-amigos .cost-amigos-val { display:inline; }
+    .cost-all-dash { display:inline; font-family:'Space Mono',monospace; font-size:.75rem; color:var(--muted); }
+    .cards-wrap.vw-carlos .cost-all-dash { display:none; }
+    .cards-wrap.vw-amigos .cost-all-dash { display:none; }
+
+    .cost-num { font-family:'Space Mono',monospace; font-size:.88rem; font-weight:700; }
+    .cost-num.c0  { color:var(--muted); }
+    .cost-num.clo { color:var(--green); }
+    .cost-num.cmi { color:var(--accent); }
+    .cost-num.chi { color:#FF4D6D; }
+
+    .cost-lbl-sm { display:none; font-family:'Space Mono',monospace; font-size:.46rem; letter-spacing:.06em; color:var(--muted); line-height:1; }
+    .cards-wrap.vw-amigos .cost-lbl-sm.lbl-a { display:block; color:var(--orange); opacity:.7; }
+    .cards-wrap.vw-carlos .cost-lbl-sm.lbl-c { display:block; color:var(--blue); opacity:.7; }
+
+    .chevron { flex-shrink:0; width:15px; height:15px; color:var(--muted); transition:transform .28s ease; }
+    .day-card.open .chevron { transform:rotate(180deg); }
+
+    /* SPLIT LANES */
+    .split-preview { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:0 11px 10px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    .split-lane { border-radius:9px; padding:8px 10px; transition:opacity .22s,filter .22s; }
+    .split-carlos { background:rgba(79,195,247,.07); border:1px solid rgba(79,195,247,.14); }
+    .split-amigos { background:rgba(255,120,73,.07);  border:1px solid rgba(255,120,73,.14); }
+    .lane-who  { font-size:.57rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px; }
+    .lane-dest { font-size:.82rem; font-weight:800; margin-bottom:2px; }
+    .lane-act  { font-size:.67rem; color:var(--muted); line-height:1.4; }
+
+    .cards-wrap.vw-carlos .split-amigos { opacity:.26; filter:grayscale(.7); }
+    .cards-wrap.vw-amigos .split-carlos { opacity:.26; filter:grayscale(.7); }
+
+    /* ACCORDION */
+    .card-body { max-height:0; overflow:hidden; transition:max-height .38s cubic-bezier(.4,0,.2,1); }
+    .day-card.open .card-body { max-height:800px; }
+    .card-inner { padding:0 12px 12px; }
+    .card-divider { height:1px; background:var(--border); margin-bottom:10px; }
+
+    /* COST GRIDS — toggle by filter */
+    .cost-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-bottom:10px; }
+    .cg-item { background:var(--surface-2); border-radius:9px; padding:7px 4px; text-align:center; }
+    .cg-lbl  { font-size:.54rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:3px; }
+    .cg-val  { font-family:'Space Mono',monospace; font-size:.8rem; font-weight:700; }
+    .cg-val.gz { color:var(--muted); }
+
+    .cg-amigos { display:none; }
+    .cards-wrap.vw-amigos .cg-carlos { display:none; }
+    .cards-wrap.vw-amigos .cg-amigos { display:grid; }
+
+    /* CHECKLIST */
+    .cl-section { margin-bottom:10px; }
+    .cl-lbl { font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:6px; }
+    .cl-item {
+      display:flex; align-items:flex-start; gap:9px;
+      padding:7px 0; border-bottom:1px solid var(--border);
+      cursor:pointer; -webkit-tap-highlight-color:transparent;
+    }
+    .cl-item:last-child { border-bottom:none; }
+    .chk-box {
+      flex-shrink:0; width:18px; height:18px; border-radius:5px;
+      border:1.5px solid rgba(255,255,255,.18);
+      display:flex; align-items:center; justify-content:center; transition:all .16s; margin-top:1px;
+    }
+    .cl-item.done .chk-box { background:var(--green); border-color:var(--green); }
+    .cl-item.done .chk-box::after { content:''; width:8px; height:4px; border-left:2px solid #09090F; border-bottom:2px solid #09090F; transform:rotate(-45deg) translateY(-1px); }
+    .chk-txt { font-size:.76rem; line-height:1.45; color:var(--text); transition:all .16s; }
+    .cl-item.done .chk-txt { text-decoration:line-through; color:var(--muted); }
+
+    .cta-row { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .cta-btn {
+      display:flex; align-items:center; justify-content:center; gap:5px;
+      padding:9px; border-radius:10px; border:1px solid var(--border);
+      background:var(--surface-2); color:var(--text);
+      font-family:'Syne',sans-serif; font-size:.73rem; font-weight:600;
+      cursor:pointer; transition:all .13s; -webkit-tap-highlight-color:transparent;
+    }
+    .cta-btn:active { transform:scale(.96); opacity:.8; }
+    .cta-btn.prim { background:var(--accent-d); border-color:var(--accent-b); color:var(--accent); }
+
+    .amigos-note { text-align:center; padding:10px 5px; font-size:.75rem; color:var(--muted); line-height:1.7; }
+
+    /* FINANCE */
+    .fin-wrap { padding:0 11px 20px; }
+
+    .fin-toggle { display:flex; gap:6px; margin-bottom:14px; }
+    .fin-toggle-btn {
+      flex:1; padding:10px 6px; border-radius:11px;
+      border:1px solid var(--border); background:var(--surface); color:var(--muted);
+      font-family:'Syne',sans-serif; font-size:.72rem; font-weight:700;
+      cursor:pointer; transition:all .16s; text-align:center; -webkit-tap-highlight-color:transparent;
+    }
+    .fin-toggle-btn.active-c { background:rgba(79,195,247,.1); border-color:rgba(79,195,247,.28); color:var(--blue); }
+    .fin-toggle-btn.active-a { background:rgba(255,120,73,.1); border-color:rgba(255,120,73,.28); color:var(--orange); }
+
+    .fin-panel { display:none; animation:fadeUp .2s ease; }
+    .fin-panel.active { display:block; }
+
+    .grand-card {
+      border-radius:16px; padding:22px 20px; margin-bottom:12px;
+      text-align:center; position:relative; overflow:hidden;
+    }
+    .grand-card::before {
+      content:''; position:absolute; inset:0;
+      background:radial-gradient(ellipse at 50% 0%,var(--gc-glow,rgba(245,166,35,.07)) 0%,transparent 68%);
+      pointer-events:none;
+    }
+    .grand-carlos { background:linear-gradient(145deg,#0f1d24 0%,#09131a 100%); border:1px solid rgba(79,195,247,.22); --gc-glow:rgba(79,195,247,.07); }
+    .grand-amigos { background:linear-gradient(145deg,#1f1309 0%,#120d07 100%); border:1px solid rgba(255,120,73,.22); --gc-glow:rgba(255,120,73,.07); }
+    .gt-lbl { font-size:.58rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted); margin-bottom:7px; }
+    .gt-amt { font-family:'Space Mono',monospace; font-size:2.8rem; font-weight:700; line-height:1; margin-bottom:5px; }
+    .grand-carlos .gt-amt { color:var(--blue); }
+    .grand-amigos .gt-amt { color:var(--orange); }
+    .gt-sub { font-size:.67rem; color:var(--muted); line-height:1.7; }
+    .gt-x4  { display:inline-block; margin-top:9px; font-family:'Space Mono',monospace; font-size:.72rem; background:rgba(255,120,73,.1); color:var(--orange); border:1px solid rgba(255,120,73,.25); border-radius:8px; padding:4px 12px; }
+
+    .cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:12px; }
+    .cat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px; }
+    .cat-ico  { font-size:1rem; margin-bottom:5px; }
+    .cat-lbl  { font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:2px; }
+    .cat-amt  { font-family:'Space Mono',monospace; font-size:1.1rem; font-weight:700; }
+    .cat-pct  { font-family:'Space Mono',monospace; font-size:.6rem; color:var(--muted); margin-top:2px; }
+    .cat-bar  { height:3px; background:var(--border); border-radius:3px; margin-top:8px; overflow:hidden; }
+    .cat-bar-fill { height:100%; border-radius:3px; }
+
+    .fin-section { margin-bottom:13px; }
+    .fin-section-title { font-size:.6rem; text-transform:uppercase; letter-spacing:.13em; color:var(--muted); margin-bottom:9px; }
+
+    .city-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+    .city-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .city-nm  { font-size:.76rem; font-weight:700; min-width:40px; }
+    .city-bar { flex:1; height:7px; background:var(--surface-2); border-radius:7px; overflow:hidden; }
+    .city-bar-fill { height:100%; border-radius:7px; }
+    .city-val { font-family:'Space Mono',monospace; font-size:.68rem; color:var(--muted-hi); min-width:40px; text-align:right; }
+
+    .ds-row { display:flex; align-items:center; gap:7px; margin-bottom:4px; }
+    .ds-d   { font-family:'Space Mono',monospace; font-size:.58rem; color:var(--muted); min-width:24px; }
+    .ds-bar { flex:1; height:8px; background:var(--surface); border-radius:8px; overflow:hidden; }
+    .ds-fill{ height:100%; border-radius:8px; }
+    .ds-v   { font-family:'Space Mono',monospace; font-size:.58rem; color:var(--muted); min-width:32px; text-align:right; }
+
+    .compare-row {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:13px; padding:14px; margin-bottom:13px;
+    }
+    .cmp-title { font-size:.62rem; text-transform:uppercase; letter-spacing:.13em; color:var(--muted); margin-bottom:11px; }
+    .cmp-bar-bg { height:10px; background:var(--surface-2); border-radius:10px; overflow:hidden; }
+    .cmp-bar-fill { height:100%; border-radius:10px; }
+    .cmp-row-lbl { display:flex; justify-content:space-between; margin-bottom:5px; }
+    .cmp-lbl { font-size:.68rem; font-weight:700; }
+    .cmp-v   { font-family:'Space Mono',monospace; font-size:.72rem; font-weight:700; }
+
+    /* CHECKLIST TAB */
+    .ck-wrap { padding:0 11px 20px; }
+    .ck-progress {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:13px; padding:14px; display:flex; align-items:center; gap:13px; margin-bottom:12px;
+    }
+    .prog-ring  { position:relative; width:58px; height:58px; flex-shrink:0; }
+    .prog-ring svg { transform:rotate(-90deg); display:block; }
+    .prog-pct { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:.74rem; font-weight:700; color:var(--green); }
+    .prog-info .pi-h { font-size:.9rem; font-weight:700; margin-bottom:2px; }
+    .prog-info .pi-s { font-size:.68rem; color:var(--muted); }
+
+    .ck-group { background:var(--surface); border:1px solid var(--border); border-radius:13px; overflow:hidden; margin-bottom:7px; }
+    .ckg-hd { padding:9px 12px; background:var(--surface-2); display:flex; align-items:center; gap:7px; border-left:3px solid transparent; }
+    .ckg-day  { font-family:'Space Mono',monospace; font-size:.63rem; font-weight:700; }
+    .ckg-dest { font-size:.8rem; font-weight:700; }
+    .ckg-date { font-family:'Space Mono',monospace; font-size:.56rem; color:var(--muted); margin-left:auto; }
+    .ckg-items { padding:4px 12px 10px; }
+
+    /* BOTTOM NAV */
+    .btm-nav {
+      position:fixed; bottom:0; left:0; right:0; height:var(--nav-h);
+      padding-bottom:env(safe-area-inset-bottom,0px);
+      background:rgba(9,9,15,.96); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+      border-top:1px solid var(--border); display:flex; align-items:stretch; z-index:300;
+    }
+    .nav-btn {
+      flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+      cursor:pointer; border:none; background:none; color:var(--muted);
+      transition:color .16s; -webkit-tap-highlight-color:transparent; padding-bottom:4px;
+    }
+    .nav-btn.active { color:var(--accent); }
+    .nav-btn .nav-ico { font-size:1.25rem; line-height:1; }
+    .nav-btn .nav-lbl { font-family:'Syne',sans-serif; font-size:.57rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+
+    #toast {
+      position:fixed; bottom:calc(var(--nav-h)+14px); left:50%;
+      transform:translateX(-50%) translateY(8px);
+      background:var(--surface-3); border:1px solid var(--border-hi);
+      border-radius:10px; padding:9px 18px; font-size:.76rem; color:var(--text);
+      opacity:0; pointer-events:none; transition:opacity .2s,transform .2s;
+      white-space:nowrap; z-index:8000; max-width:88vw; overflow:hidden; text-overflow:ellipsis;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+    ::-webkit-scrollbar { width:3px; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+    /* ── CURRENCY CONVERTER ── */
+    .conv-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:14px; padding:16px; margin:0 11px 14px;
+    }
+    .conv-title { font-size:.62rem; text-transform:uppercase; letter-spacing:.13em; color:var(--muted); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+    .conv-rate-pill { margin-left:auto; font-family:'Space Mono',monospace; font-size:.58rem; background:var(--accent-d); color:var(--accent); border:1px solid var(--accent-b); border-radius:20px; padding:2px 8px; }
+    .conv-row { display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center; }
+    .conv-input-wrap { position:relative; }
+    .conv-flag { position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:1rem; pointer-events:none; }
+    .conv-input {
+      width:100%; padding:10px 10px 10px 36px;
+      background:var(--surface-2); border:1px solid var(--border);
+      border-radius:10px; color:var(--text);
+      font-family:'Space Mono',monospace; font-size:.9rem; font-weight:700;
+      outline:none; transition:border-color .15s;
+    }
+    .conv-input:focus { border-color:var(--accent-b); }
+    .conv-currency { font-family:'Space Mono',monospace; font-size:.58rem; color:var(--muted); text-align:center; margin-top:4px; }
+    .conv-swap {
+      width:34px; height:34px; border-radius:50%;
+      background:var(--surface-3); border:1px solid var(--border);
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; font-size:1rem; transition:transform .2s;
+      -webkit-tap-highlight-color:transparent; flex-shrink:0;
+    }
+    .conv-swap:active { transform:rotate(180deg); }
+    .conv-updated { font-size:.55rem; color:var(--muted); text-align:center; margin-top:8px; }
+
+    /* ── WEEKLY CHART ── */
+    .chart-wrap { margin:0 11px 14px; }
+    .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; }
+    .chart-title { font-size:.62rem; text-transform:uppercase; letter-spacing:.13em; color:var(--muted); margin-bottom:14px; }
+    .chart-toggle { display:flex; gap:5px; margin-bottom:14px; }
+    .chart-tog-btn {
+      flex:1; padding:6px; border-radius:8px; border:1px solid var(--border);
+      background:var(--surface-2); color:var(--muted);
+      font-family:'Syne',sans-serif; font-size:.62rem; font-weight:700;
+      cursor:pointer; transition:all .14s; text-align:center;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .chart-tog-btn.on-c { background:rgba(79,195,247,.1); border-color:rgba(79,195,247,.28); color:var(--blue); }
+    .chart-tog-btn.on-a { background:rgba(255,120,73,.1); border-color:rgba(255,120,73,.28); color:var(--orange); }
+    .chart-area { position:relative; height:160px; }
+    canvas#weekChart { width:100%!important; height:160px!important; }
+    .chart-legend { display:flex; gap:12px; justify-content:center; margin-top:10px; }
+    .chart-legend-item { display:flex; align-items:center; gap:5px; font-size:.6rem; color:var(--muted); }
+    .chart-legend-dot { width:8px; height:8px; border-radius:50%; }
+
+    /* ── EDITOR MODAL ── */
+    .editor-fab {
+      position:fixed; bottom:calc(var(--nav-h) + 14px); right:15px;
+      width:46px; height:46px; border-radius:50%;
+      background:var(--accent); color:#09090F;
+      font-size:1.2rem; border:none; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow:0 4px 20px rgba(245,166,35,.35);
+      z-index:250; transition:transform .15s, box-shadow .15s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .editor-fab:active { transform:scale(.92); box-shadow:0 2px 10px rgba(245,166,35,.2); }
+
+    .editor-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.72);
+      z-index:400; display:none; align-items:flex-end;
+      backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+    }
+    .editor-overlay.open { display:flex; }
+
+    .editor-sheet {
+      width:100%; max-height:90dvh; overflow-y:auto;
+      background:var(--surface); border-radius:22px 22px 0 0;
+      padding:0 0 env(safe-area-inset-bottom,16px);
+      animation:sheetUp .28s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes sheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+
+    .editor-handle { width:36px; height:4px; background:var(--border-hi); border-radius:4px; margin:12px auto 0; }
+    .editor-hd {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px 10px;
+      border-bottom:1px solid var(--border);
+    }
+    .editor-hd-title { font-size:1rem; font-weight:800; }
+    .editor-close {
+      width:30px; height:30px; border-radius:50%;
+      background:var(--surface-2); border:1px solid var(--border);
+      color:var(--muted); font-size:.9rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    .editor-day-select {
+      padding:10px 16px; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none;
+      border-bottom:1px solid var(--border);
+    }
+    .editor-day-select::-webkit-scrollbar { display:none; }
+    .ed-day-chip {
+      flex-shrink:0; padding:6px 12px; border-radius:8px;
+      border:1px solid var(--border); background:var(--surface-2);
+      font-family:'Space Mono',monospace; font-size:.62rem; font-weight:700;
+      cursor:pointer; transition:all .14s; color:var(--muted);
+      -webkit-tap-highlight-color:transparent;
+    }
+    .ed-day-chip.active { background:var(--accent-d); border-color:var(--accent-b); color:var(--accent); }
+
+    .editor-form { padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+    .ed-field-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .ed-field { display:flex; flex-direction:column; gap:4px; }
+    .ed-field.full { grid-column:1/-1; }
+    .ed-label {
+      font-size:.58rem; text-transform:uppercase; letter-spacing:.1em;
+      color:var(--muted); font-family:'Space Mono',monospace;
+    }
+    .ed-input {
+      background:var(--surface-2); border:1px solid var(--border);
+      border-radius:9px; padding:9px 11px; color:var(--text);
+      font-family:'Syne',sans-serif; font-size:.82rem; font-weight:600;
+      outline:none; transition:border-color .14s; width:100%;
+    }
+    .ed-input:focus { border-color:var(--accent-b); }
+    .ed-input.num { font-family:'Space Mono',monospace; }
+    .ed-save {
+      background:var(--accent); color:#09090F;
+      border:none; border-radius:11px; padding:13px;
+      font-family:'Syne',sans-serif; font-size:.85rem; font-weight:800;
+      cursor:pointer; width:100%; margin-top:4px;
+      -webkit-tap-highlight-color:transparent; transition:opacity .14s;
+    }
+    .ed-save:active { opacity:.8; }
+    .ed-note { font-size:.62rem; color:var(--muted); text-align:center; line-height:1.5; }
+
+    /* ── FLIGHT SEARCH BUTTONS ── */
+    .flight-search-section {
+      margin-top:10px; padding-top:10px;
+      border-top:1px solid var(--border);
+    }
+    .flight-search-lbl {
+      font-size:.56rem; text-transform:uppercase; letter-spacing:.1em;
+      color:var(--muted); margin-bottom:7px; display:flex; align-items:center; gap:5px;
+    }
+    .flight-routes { display:flex; flex-direction:column; gap:6px; }
+    .flight-route-row {
+      background:var(--surface-2); border:1px solid var(--border);
+      border-radius:10px; padding:8px 10px;
+    }
+    .flight-route-info {
+      font-size:.72rem; font-weight:700; margin-bottom:6px;
+      display:flex; align-items:center; gap:5px;
+    }
+    .flight-route-who {
+      font-size:.54rem; font-family:'Space Mono',monospace;
+      text-transform:uppercase; letter-spacing:.07em; opacity:.65;
+    }
+    .flight-btns { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    .flight-btn {
+      display:flex; align-items:center; justify-content:center; gap:4px;
+      padding:7px 5px; border-radius:8px; border:1px solid var(--border);
+      font-family:'Syne',sans-serif; font-size:.66rem; font-weight:700;
+      cursor:pointer; transition:all .13s; text-decoration:none;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .flight-btn:active { transform:scale(.96); opacity:.8; }
+    .flight-btn.gf  { background:rgba(66,133,244,.1); border-color:rgba(66,133,244,.3); color:#4285F4; }
+    .flight-btn.sk  { background:rgba(0,163,224,.1);  border-color:rgba(0,163,224,.3);  color:#00A3E0; }
+  </style>
+</head>
+<body>
+<div id="loadBar"></div>
+<div id="toast"></div>
+
+<header class="app-hdr">
+  <div class="hdr-text">
+    <div class="hdr-logo">🌍 EUROTRIP '26</div>
+    <div class="hdr-sub">01 SEP — 24 SEP · 24 DÍAS · BCN › ROM › PAR</div>
+  </div>
+  <div class="hdr-budget" id="hdrBudget">💙 $1,472 Carlos</div>
+</header>
+
+<!-- ITINERARIO TAB -->
+<div class="tab-view active" id="tab-itinerario">
+  <div class="filter-bar">
+    <button class="ftab active-all" id="ftab-all" onclick="setFilter('all',this)">🌍 General<span class="ftab-count">24 días</span></button>
+    <button class="ftab" id="ftab-carlos" onclick="setFilter('carlos',this)">🎒 Carlos<span class="ftab-count">21 días</span></button>
+    <button class="ftab" id="ftab-amigos" onclick="setFilter('amigos',this)">🗺️ Amigos<span class="ftab-count">23 días</span></button>
+  </div>
+  <div class="sec-hd">
+    <div class="sec-title" id="itin-title">Todos los días</div>
+    <div class="sec-meta" id="itin-meta">24 DÍAS · 4 PAÍSES</div>
+  </div>
+
+  <!-- COUNTDOWN -->
+  <div id="countdownBar" style="margin:0 12px 12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:12px">
+    <div style="font-size:1.6rem;line-height:1">✈️</div>
+    <div style="flex:1">
+      <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:3px">FALTAN PARA EL DESPEGUE</div>
+      <div id="cdNums" style="display:flex;gap:8px;align-items:baseline"></div>
+    </div>
+  </div>
+
+  <div class="chip-row" id="statsChips"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;padding:0 12px 12px">
+    <span style="font-size:.62rem;display:flex;align-items:center;gap:4px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span>Grupo completo</span>
+    <span style="font-size:.62rem;display:flex;align-items:center;gap:4px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:var(--purple);display:inline-block"></span>Rutas separadas</span>
+    <span style="font-size:.62rem;display:flex;align-items:center;gap:4px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block"></span>Solo Carlos</span>
+    <span style="font-size:.62rem;display:flex;align-items:center;gap:4px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block"></span>Solo Amigos</span>
+  </div>
+  <div class="cards-wrap vw-all" id="cardsWrap"></div>
+</div>
+
+<!-- FINANZAS TAB -->
+<div class="tab-view" id="tab-finanzas">
+  <div class="sec-hd">
+    <div class="sec-title">Finanzas</div>
+    <div class="sec-meta">CARLOS + AMIGOS</div>
+  </div>
+
+  <!-- CURRENCY CONVERTER -->
+  <div class="conv-card">
+    <div class="conv-title">💱 Conversor en Vivo <span class="conv-rate-pill" id="convRatePill">cargando…</span></div>
+    <div class="conv-row">
+      <div class="conv-input-wrap">
+        <span class="conv-flag" id="flagA">🇺🇸</span>
+        <input class="conv-input" id="convA" type="number" inputmode="decimal" value="100" oninput="convertCurrency('A')">
+        <div class="conv-currency" id="labelA">USD</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <button class="conv-swap" onclick="swapCurrency()">⇄</button>
+      </div>
+      <div class="conv-input-wrap">
+        <span class="conv-flag" id="flagB">🇪🇺</span>
+        <input class="conv-input" id="convB" type="number" inputmode="decimal" value="" oninput="convertCurrency('B')">
+        <div class="conv-currency" id="labelB">EUR</div>
+      </div>
+    </div>
+    <div class="conv-updated" id="convUpdated">Obteniendo tipo de cambio…</div>
+  </div>
+
+  <!-- WEEKLY CHART -->
+  <div class="chart-wrap">
+    <div class="chart-card">
+      <div class="chart-title">📊 Gasto Acumulado por Semana</div>
+      <div class="chart-toggle">
+        <button class="chart-tog-btn on-c" id="ctog-carlos" onclick="setChartView('carlos')">🎒 Carlos</button>
+        <button class="chart-tog-btn" id="ctog-amigos" onclick="setChartView('amigos')">🗺️ c/Amigo</button>
+        <button class="chart-tog-btn" id="ctog-both" onclick="setChartView('both')">Ambos</button>
+      </div>
+      <div class="chart-area"><canvas id="weekChart"></canvas></div>
+      <div class="chart-legend" id="chartLegend"></div>
+    </div>
+  </div>
+
+  <div class="fin-wrap" id="finWrap"></div>
+</div>
+
+<!-- CHECKLIST TAB -->
+<div class="tab-view" id="tab-checklist">
+  <div class="sec-hd">
+    <div class="sec-title">Checklist</div>
+    <div class="sec-meta" id="ckMeta">0 / 0 TAREAS</div>
+  </div>
+  <div class="ck-wrap" id="ckWrap"></div>
+</div>
+
+<nav class="btm-nav">
+  <button class="nav-btn active" onclick="switchTab('itinerario',this)"><span class="nav-ico">🗺️</span><span class="nav-lbl">Itinerario</span></button>
+  <button class="nav-btn" onclick="switchTab('finanzas',this)"><span class="nav-ico">💰</span><span class="nav-lbl">Finanzas</span></button>
+  <button class="nav-btn" onclick="switchTab('checklist',this)"><span class="nav-ico">✅</span><span class="nav-lbl">Checklist</span></button>
+</nav>
+
+<!-- EDITOR FAB -->
+<button class="editor-fab" id="editorFab" onclick="openEditor()" title="Editar itinerario">✏️</button>
+
+<!-- EDITOR MODAL -->
+<div class="editor-overlay" id="editorOverlay" onclick="overlayClose(event)">
+  <div class="editor-sheet" id="editorSheet">
+    <div class="editor-handle"></div>
+    <div class="editor-hd">
+      <div class="editor-hd-title">✏️ Editar Día</div>
+      <button class="editor-close" onclick="closeEditor()">✕</button>
+    </div>
+    <div class="editor-day-select" id="edDaySelect"></div>
+    <div class="editor-form" id="editorForm"></div>
+  </div>
+</div>
+
+<script>
+/* DATA: costA = cost per friend (each of 4) */
+const TRIP = [
+  {day:1, date:"01/09",modal:"group",   destC:"TRANS",destA:"TRANS",activity:"Vuelo VZLA → Madrid (noche)",
+   transport:0,transportPaid:true,aloj:0,comida:0,extras:0,costC:0,
+   atransport:0,atransportPaid:true,aaloj:0,acomida:0,aextras:0,costA:0,
+   checklist:["Pasaporte vigente (mín. 6 meses)","Seguro de viaje Schengen activo"]},
+
+  {day:2, date:"02/09",modal:"group",   destC:"BCN",  destA:"BCN",  activity:"Llegada MAD + Bus→Atocha + AVE → BCN",
+   transport:53,aloj:0,comida:35,extras:0,costC:88,
+   atransport:53,aaloj:0,acomida:30,aextras:0,costA:83,
+   checklist:["Billetes AVE impresos o en móvil","Bus aeropuerto MAD → Atocha (~€3 c/u)","Carta Invitación Policial lista"]},
+
+  {day:3, date:"03/09",modal:"group",   destC:"BCN",  destA:"BCN",  activity:"Preparativos Boda",
+   transport:0,aloj:0,comida:35,extras:5,costC:40,
+   atransport:0,aaloj:0,acomida:30,aextras:5,costA:35,
+   checklist:["Demostración fondos financieros lista"]},
+
+  {day:4, date:"04/09",modal:"group",   destC:"BCN",  destA:"BCN",  activity:"Boda 🤵 — Día Especial",special:"boda",
+   transport:0,aloj:0,comida:35,extras:15,costC:50,
+   atransport:0,aaloj:0,acomida:35,aextras:15,costA:50,
+   checklist:["Traje/vestimenta confirmada y planchada"]},
+
+  {day:5, date:"05/09",modal:"group",   destC:"BCN",  destA:"BCN",  activity:"Turismo libre (Gótico, Búnkers)",
+   transport:0,aloj:0,comida:35,extras:10,costC:45,
+   atransport:0,aaloj:0,acomida:30,aextras:10,costA:40,
+   checklist:["Tarjeta Zinli / Wally activa y con saldo"]},
+
+  {day:6, date:"06/09",modal:"group",   destC:"BCN",  destA:"BCN",  activity:"Turismo libre Barcelona",
+   transport:0,aloj:0,comida:35,extras:10,costC:45,
+   atransport:0,aaloj:0,acomida:30,aextras:10,costA:40,
+   checklist:["SIM / eSIM comprada o descargada"]},
+
+  {day:7, date:"07/09",modal:"group",   destC:"BCN",  destA:"BCN",  activity:"Turismo libre · Despedida grupal",
+   transport:0,aloj:0,comida:35,extras:10,costC:45,
+   atransport:0,aaloj:0,acomida:30,aextras:10,costA:40,
+   checklist:["Maleta 23kg dejada en depósito BCN"]},
+
+  /* SPLIT: Carlos BCN / Amigos Valencia */
+  {day:8, date:"08/09",modal:"split",   destC:"BCN",  destA:"VLC",  actC:"Turismo con Ismael — Barcelona 🤝",actA:"🚄 Tren a Valencia · Sin hospedaje",activity:"Rutas separadas",
+   transport:0,aloj:0,comida:35,extras:10,costC:45,
+   atransport:30,aaloj:0,acomida:30,aextras:10,costA:70,
+   checklist:["Check-in vuelo BCN→ROM Día 11","App Maps.me offline descargada"]},
+
+  {day:9, date:"09/09",modal:"split",   destC:"BCN",  destA:"VLC",  actC:"Turismo con Ismael — Barcelona 🤝",actA:"Turismo Valencia · Sin hospedaje",activity:"Rutas separadas",
+   transport:0,aloj:0,comida:35,extras:10,costC:45,
+   atransport:0,aaloj:0,acomida:30,aextras:12,costA:42,
+   checklist:["Reservas free tours Roma confirmadas"]},
+
+  {day:10,date:"10/09",modal:"split",   destC:"BCN",  destA:"VLC",  actC:"Turismo con Ismael — Barcelona 🤝",actA:"Turismo Valencia · Sin hospedaje",activity:"Rutas separadas",
+   transport:0,aloj:0,comida:35,extras:10,costC:45,
+   atransport:0,aaloj:0,acomida:30,aextras:12,costA:42,
+   checklist:["Airbnb Roma pagado · Código acceso guardado"]},
+
+  /* REENCUENTRO ROMA */
+  {day:11,date:"11/09",modal:"split",   destC:"ROM",  destA:"ROM",  actC:"✈️ Vuelo BCN → ROM",actA:"✈️ Vuelo VLC → ROM",activity:"✨ REENCUENTRO — ¡Roma!",special:"reencuentro",
+   transport:60,aloj:28,comida:35,extras:5,costC:128,
+   atransport:65,aaloj:28,acomida:35,aextras:5,costA:133,
+   checklist:["Dejar maleta 23kg en consigna BCN","Billete BCN→ROM impreso / en móvil"]},
+
+  {day:12,date:"12/09",modal:"group",   destC:"ROM",  destA:"ROM",  activity:"🏛️ Coliseo + Foro Romano + Fontana di Trevi",
+   transport:0,aloj:27,comida:35,extras:37,costC:99,
+   atransport:0,aaloj:27,acomida:30,aextras:37,costA:94,
+   checklist:["🎫 Entradas Coliseo + Foro Romano reservadas online (~€20/p)","🪙 Fontana di Trevi — acceso regulado (~€2/p · solo horario pico)","Llevar agua — la zona es muy turística"]},
+
+  {day:13,date:"13/09",modal:"group",   destC:"ROM",  destA:"ROM",  activity:"🕍 Vaticano + Capilla Sixtina + Plaza San Pedro",
+   transport:0,aloj:27,comida:35,extras:37,costC:99,
+   atransport:0,aaloj:27,acomida:30,aextras:37,costA:94,
+   checklist:["🎫 Entradas Museos Vaticanos + Capilla Sixtina reservadas (~€22/p)","Ir temprano a primera hora — largas colas sin reserva","Check-out Airbnb Roma coordinado para mañana"]},
+
+  /* VUELO ROM → PAR */
+  {day:14,date:"14/09",modal:"group",   destC:"PAR",  destA:"PAR",  activity:"Vuelo ROM → PAR (mañana temprano)",
+   transport:80,aloj:28,comida:35,extras:15,costC:158,
+   atransport:75,aaloj:28,acomida:30,aextras:15,costA:148,
+   checklist:["Check-in lowcost completado","Mochila cabina: peso y dimensiones OK","Check-out Airbnb Roma coordinado"]},
+
+  {day:15,date:"15/09",modal:"group",   destC:"PAR",  destA:"PAR",  activity:"Exploración conjunta París",
+   transport:0,aloj:33,comida:35,extras:16,costC:84,
+   atransport:0,aaloj:33,acomida:30,aextras:15,costA:78,
+   checklist:["Airbnb PAR pagado · Código acceso listo","App Citymapper instalada"]},
+
+  {day:16,date:"16/09",modal:"group",   destC:"PAR",  destA:"PAR",  activity:"🗼 Torre Eiffel + Exploración París",
+   transport:0,aloj:34,comida:35,extras:43,costC:112,
+   atransport:0,aaloj:34,acomida:30,aextras:43,costA:107,
+   checklist:["🎫 Entradas Torre Eiffel reservadas online (~€28/p · 2do piso)","Reservar con semanas de antelación — se agotan rápido","Llegar 30 min antes de la hora reservada"]},
+
+  {day:17,date:"17/09",modal:"group",   destC:"PAR",  destA:"PAR",  activity:"Exploración París · Despedida grupal",
+   transport:0,aloj:34,comida:35,extras:15,costC:84,
+   atransport:0,aaloj:34,acomida:30,aextras:15,costA:79,
+   checklist:["Check-out Airbnb París coordinado"]},
+
+  /* TODOS REGRESAN A BCN */
+  {day:18,date:"18/09",modal:"group",   destC:"BCN",  destA:"BCN",  activity:"✈️ TODOS: Vuelo PAR → BCN — Reencuentro completo",
+   transport:55,aloj:0,comida:35,extras:10,costC:100,
+   atransport:55,aaloj:0,acomida:30,aextras:10,costA:95,
+   checklist:["Check-in vuelo PAR→BCN completado (todos)","Coordinar punto de encuentro en el aeropuerto"]},
+
+  {day:19,date:"19/09",modal:"split",   destC:"MAD",  destA:"BCN",  actC:"🚄 Tren BCN → MAD (AVE/Iryo)",actA:"Último día en Barcelona",activity:"Rutas separadas",
+   transport:45,aloj:40,comida:35,extras:5,costC:125,
+   atransport:0,aaloj:35,acomida:30,aextras:10,costA:75,
+   checklist:["Rescatar maleta 23kg del depósito BCN","Billete AVE/Iryo BCN→MAD listo"]},
+
+  {day:20,date:"20/09",modal:"split",   destC:"MAD",  destA:"MAD",  actC:"Exploración solo Madrid",actA:"✈️ Vuelo BCN → MAD + Bus Aeropuerto→Centro (~€3)",activity:"Rutas separadas",
+   transport:0,aloj:40,comida:35,extras:15,costC:90,
+   atransport:53,aaloj:40,acomida:30,aextras:10,costA:133,
+   checklist:["Hostel MAD pagado · Check-in vuelo VZLA online","Amigos: bus aeropuerto MAD → Atocha (~€3)"]},
+
+  /* SOLO CARLOS — vuela a casa */
+  {day:21,date:"21/09",modal:"solo-carlos",destC:"VZLA",destA:null,activity:"MAD → VZLA (13:00h — T4/T1 Barajas)",
+   transport:8,aloj:0,comida:15,extras:0,costC:23,
+   atransport:0,aaloj:0,acomida:0,aextras:0,costA:0,
+   checklist:["Bus Atocha → Barajas T4/T1 (~€3)","Llegar a Barajas antes de las 09:30 AM"]},
+
+  /* SOLO AMIGOS — Madrid */
+  {day:22,date:"22/09",modal:"solo-amigos",destC:null,destA:"MAD",activity:"Amigos exploran Madrid",
+   transport:0,aloj:0,comida:0,extras:0,costC:0,
+   atransport:0,aaloj:38,acomida:30,aextras:15,costA:83,
+   checklist:["Hostel / Airbnb Madrid confirmado"]},
+
+  {day:23,date:"23/09",modal:"solo-amigos",destC:null,destA:"MAD",activity:"Amigos exploran Madrid",
+   transport:0,aloj:0,comida:0,extras:0,costC:0,
+   atransport:0,aaloj:38,acomida:30,aextras:15,costA:83,
+   checklist:["Check-in vuelo retorno confirmado"]},
+
+  {day:24,date:"24/09",modal:"solo-amigos",destC:null,destA:"VZLA",activity:"Amigos — Vuelo MAD → Casa 🏡",
+   transport:0,aloj:0,comida:0,extras:0,costC:0,
+   atransport:93,aaloj:0,acomida:20,aextras:0,costA:113,
+   checklist:["Bus Atocha → Barajas (~€3)","¡Fin del Eurotrip! Compartir fotos y memorias 📸"]},
+];
+
+const DEST = {
+  TRANS:{color:"#9B89FF",bg:"rgba(155,137,255,.11)",flag:"✈️", full:"Tránsito"},
+  BCN:  {color:"#FF4D6D",bg:"rgba(255,77,109,.11)", flag:"🇪🇸",full:"Barcelona"},
+  ROM:  {color:"#EF5B4E",bg:"rgba(239,91,78,.11)",  flag:"🇮🇹",full:"Roma"},
+  PAR:  {color:"#FFD166",bg:"rgba(255,209,102,.11)",flag:"🇫🇷",full:"París"},
+  MAD:  {color:"#06D6A0",bg:"rgba(6,214,160,.11)",  flag:"🇪🇸",full:"Madrid"},
+  VZLA: {color:"#9B89FF",bg:"rgba(155,137,255,.11)",flag:"🇻🇪",full:"Venezuela"},
+  VLC:  {color:"#FF9A3C",bg:"rgba(255,154,60,.11)", flag:"🇪🇸",full:"Valencia"},
+  TBD:  {color:"#888",   bg:"rgba(136,136,136,.09)",flag:"❓", full:"Por Definir"},
+};
+const MODAL_CFG = {
+  "group":      {color:"var(--green)", bg:"rgba(6,214,160,.09)",  label:"🟢 Grupo"},
+  "split":      {color:"var(--purple)",bg:"rgba(155,137,255,.09)",label:"🔀 Separados"},
+  "solo-carlos":{color:"var(--blue)",  bg:"rgba(79,195,247,.09)", label:"🔵 Solo Carlos"},
+  "solo-amigos":{color:"var(--orange)",bg:"rgba(255,120,73,.09)", label:"🟠 Solo Amigos"},
+};
+
+/* ── FLIGHT DEEP-LINKS ──────────────────────────────────────────
+   GF  = Google Flights  (opens with origin/dest/date pre-filled)
+   SK  = Skyscanner      (direct route URL)
+   Routes per day. Each entry has who (label), route (display),
+   gf (Google Flights URL), sk (Skyscanner URL)
+──────────────────────────────────────────────────────────────── */
+const FLIGHTS = {
+  1: [
+    { who:'🌍 Todos', route:'CCS ✈️ MAD', note:'Vuelo ya pagado — solo referencia',
+      gf: 'https://www.google.com/travel/flights/search?q=vuelos+de+Caracas+a+Madrid+1+septiembre+2026',
+      sk: 'https://www.skyscanner.com/transport/flights/CCS/MAD/260901/' }
+  ],
+  11: [
+    { who:'🎒 Carlos', route:'BCN ✈️ ROM',
+      gf: 'https://www.google.com/travel/flights/search?q=vuelos+de+Barcelona+a+Roma+11+septiembre+2026',
+      sk: 'https://www.skyscanner.com/transport/flights/BCN/ROM/260911/' },
+    { who:'🗺️ Amigos', route:'VLC ✈️ ROM',
+      gf: 'https://www.google.com/travel/flights/search?q=vuelos+de+Valencia+a+Roma+11+septiembre+2026',
+      sk: 'https://www.skyscanner.com/transport/flights/VLC/ROM/260911/' }
+  ],
+  14: [
+    { who:'🌍 Todos', route:'ROM ✈️ PAR',
+      gf: 'https://www.google.com/travel/flights/search?q=vuelos+de+Roma+a+Paris+14+septiembre+2026',
+      sk: 'https://www.skyscanner.com/transport/flights/ROM/PAR/260914/' }
+  ],
+  18: [
+    { who:'🌍 Todos', route:'PAR ✈️ BCN',
+      gf: 'https://www.google.com/travel/flights/search?q=vuelos+de+Paris+a+Barcelona+18+septiembre+2026',
+      sk: 'https://www.skyscanner.com/transport/flights/PAR/BCN/260918/' }
+  ],
+  21: [
+    { who:'🎒 Carlos', route:'MAD ✈️ CCS',
+      gf: 'https://www.google.com/travel/flights/search?q=vuelos+de+Madrid+a+Caracas+21+septiembre+2026',
+      sk: 'https://www.skyscanner.com/transport/flights/MAD/CCS/260921/' }
+  ],
+  24: [
+    { who:'🗺️ Amigos', route:'MAD ✈️ CCS',
+      gf: 'https://www.google.com/travel/flights/search?q=vuelos+de+Madrid+a+Caracas+24+septiembre+2026',
+      sk: 'https://www.skyscanner.com/transport/flights/MAD/CCS/260924/' }
+  ],
+};
+
+const SK='eurotrip26_v4';
+let checks={};
+try{checks=JSON.parse(localStorage.getItem(SK)||'{}');}catch(e){}
+function save(){try{localStorage.setItem(SK,JSON.stringify(checks));}catch(e){}}
+
+function fmt(n){return n===0?'$0':'$'+n;}
+function cc(n){if(n===0)return 'c0';if(n<=60)return 'clo';if(n<=120)return 'cmi';return 'chi';}
+
+/* ── CARDS ── */
+function renderCards(){
+  const wrap=document.getElementById('cardsWrap');
+  let html='';
+  TRIP.forEach((d,i)=>{
+    const mc=MODAL_CFG[d.modal];
+    const dc=DEST[d.destC]||DEST.TBD;
+    const isSplit=d.modal==='split';
+    const isAmigos=d.modal==='solo-amigos';
+    const isCarlos=d.modal==='solo-carlos';
+
+    const lanes=isSplit?`<div class="split-preview" onclick="openCard(${d.day})">
+      <div class="split-lane split-carlos">
+        <div class="lane-who" style="color:var(--blue)">🎒 CARLOS</div>
+        <div class="lane-dest" style="color:${(DEST[d.destC]||DEST.TBD).color}">${(DEST[d.destC]||DEST.TBD).flag} ${d.destC}</div>
+        <div class="lane-act">${d.actC||''}</div>
+      </div>
+      <div class="split-lane split-amigos">
+        <div class="lane-who" style="color:var(--orange)">🗺️ AMIGOS</div>
+        <div class="lane-dest" style="color:${(DEST[d.destA]||DEST.TBD).color}">${(DEST[d.destA]||DEST.TBD).flag} ${d.destA||'?'}</div>
+        <div class="lane-act">${d.actA||''}</div>
+      </div>
+    </div>`:'';
+
+    const ckHtml=d.checklist.map((t,ci)=>{
+      const k=`${d.day}-${ci}`;
+      return `<div class="cl-item ${checks[k]?'done':''}" data-key="${k}" onclick="toggle('${k}',this)">
+        <div class="chk-box"></div><span class="chk-txt">${t}</span>
+      </div>`;
+    }).join('');
+
+    const sb=d.special==='boda'?`<span class="special-badge">🤵 BODA</span>`:
+      d.special==='reencuentro'?`<span class="special-badge reunion">✨ REENCUENTRO</span>`:'';
+
+    const actTxt=isSplit?`<span style="font-size:.68rem;color:var(--purple);font-weight:600">↕ Ver rutas abajo</span>`:
+      isAmigos?`<span style="color:var(--muted)">Carlos ya está en Venezuela 🏠</span>`:d.activity;
+
+    // Dual cost spans — CSS toggles visibility
+    const costC_html=isAmigos?`<span style="font-size:.7rem;color:var(--muted)">—</span>`:
+      `<span class="cost-carlos-val cost-num ${cc(d.costC)}">${d.costC===0&&d.transportPaid?'🔒 Pgd':fmt(d.costC)}</span>`;
+    const costA_html=isCarlos?`<span style="font-size:.7rem;color:var(--muted)">—</span>`:
+      `<span class="cost-amigos-val cost-num ${cc(d.costA)}">${d.costA===0&&d.atransportPaid?'🔒 Pgd':fmt(d.costA)}</span>`;
+
+    // Two cost grids (CSS switches which one shows)
+    const gridC=`<div class="cost-grid cg-carlos">
+      <div class="cg-item"><div class="cg-lbl">🎒 Carlos</div><div class="cg-val" style="color:var(--blue);font-size:.6rem">POR PERSONA</div></div>
+      <div class="cg-item"><div class="cg-lbl">🚌 Transp</div><div class="cg-val ${d.transport===0?'gz':''}">${d.transportPaid&&d.transport===0?'🔒':fmt(d.transport)}</div></div>
+      <div class="cg-item"><div class="cg-lbl">🏨 Aloj</div><div class="cg-val ${d.aloj===0?'gz':''}">${fmt(d.aloj)}</div></div>
+      <div class="cg-item"><div class="cg-lbl">🍽️+🎭</div><div class="cg-val">${fmt(d.comida+d.extras)}</div></div>
+    </div>`;
+
+    const gridA=isCarlos?'':
+      `<div class="cost-grid cg-amigos">
+        <div class="cg-item"><div class="cg-lbl">🗺️ Amigos</div><div class="cg-val" style="color:var(--orange);font-size:.6rem">C/PERSONA</div></div>
+        <div class="cg-item"><div class="cg-lbl">🚌 Transp</div><div class="cg-val ${d.atransport===0?'gz':''}">${d.atransportPaid&&d.atransport===0?'🔒':fmt(d.atransport)}</div></div>
+        <div class="cg-item"><div class="cg-lbl">🏨 Aloj</div><div class="cg-val ${d.aaloj===0?'gz':''}">${fmt(d.aaloj)}</div></div>
+        <div class="cg-item"><div class="cg-lbl">🍽️+🎭</div><div class="cg-val">${fmt(d.acomida+d.aextras)}</div></div>
+      </div>`;
+
+    // Flight search buttons (only for days with flights)
+    const flightRoutes = FLIGHTS[d.day];
+    const flightHtml = flightRoutes ? `
+      <div class="flight-search-section">
+        <div class="flight-search-lbl">✈️ Buscar vuelos para este día</div>
+        <div class="flight-routes">
+          ${flightRoutes.map(f=>`
+          <div class="flight-route-row">
+            <div class="flight-route-info">
+              <span>${f.route}</span>
+              <span class="flight-route-who">${f.who}</span>
+              ${f.note?`<span style="font-size:.58rem;color:var(--muted);margin-left:auto">${f.note}</span>`:''}
+            </div>
+            <div class="flight-btns">
+              <a class="flight-btn gf" href="${f.gf}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Google Flights
+              </a>
+              <a class="flight-btn sk" href="${f.sk}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 4.5L6 8l-1.5 1.5L8 13l3-3 2.5 2.5-5 5L3 12l1.5-1.5L2.5 8.5V4.5zM21 4l-7 7-2-2 7-7 2 2z"/></svg>
+                Skyscanner
+              </a>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>` : '';
+
+    const body=isAmigos?
+      `<div class="amigos-note">Carlos ya está de vuelta en Venezuela 🏠<br><span style="color:var(--muted-hi)">Los amigos finalizan su aventura.</span></div>
+       ${gridA}
+       <div class="cl-section"><div class="cl-lbl">✅ Logística</div>${ckHtml}</div>
+       ${flightHtml}`:
+      `${gridC}${gridA}
+       <div class="cl-section"><div class="cl-lbl">✅ Logística del día</div>${ckHtml}</div>
+       <div class="cta-row">
+         <button class="cta-btn prim" onclick="navMap(event,'${(DEST[d.destC]||{}).full||''}')">📍 Navegar</button>
+         <button class="cta-btn" onclick="ticket(event,${d.day})">🎫 Tickets</button>
+       </div>
+       ${flightHtml}`;
+
+    html+=`<div class="day-card modal-${d.modal}${d.special?' special-'+d.special:''}" id="card-${d.day}" data-modal="${d.modal}" style="animation-delay:${i*.022}s">
+      <div class="card-hd" onclick="openCard(${d.day})">
+        <div class="day-badge" style="background:${dc.bg}">
+          <span class="badge-num" style="color:${dc.color}">D${d.day}</span>
+          <span class="badge-dt">${d.date}</span>
+        </div>
+        <div class="card-info">
+          <div>${sb}<span class="modal-tag" style="color:${mc.color};background:${mc.bg}">${mc.label}</span></div>
+          <div class="card-act">${actTxt}</div>
+        </div>
+        <div class="card-cost"><div class="cost-wrap">
+          <span class="cost-lbl-sm lbl-c">CARLOS</span>
+          <span class="cost-lbl-sm lbl-a">C/AMIGO</span>
+          <span class="cost-all-dash">···</span>
+          ${costC_html}${costA_html}
+        </div></div>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      ${lanes}
+      <div class="card-body"><div class="card-inner"><div class="card-divider"></div>${body}</div></div>
+    </div>`;
+  });
+  wrap.innerHTML=html;
+}
+
+/* ── FINANCE ── */
+function renderFinance(){
+  const cDays=TRIP.filter(d=>d.modal!=='solo-amigos');
+  const aDays=TRIP.filter(d=>d.modal!=='solo-carlos');
+
+  const cTot=cDays.reduce((s,d)=>s+d.costC,0);
+  const cTrn=cDays.reduce((s,d)=>s+d.transport,0);
+  const cAlj=cDays.reduce((s,d)=>s+d.aloj,0);
+  const cCom=cDays.reduce((s,d)=>s+d.comida,0);
+  const cExt=cDays.reduce((s,d)=>s+d.extras,0);
+
+  const aTot=aDays.reduce((s,d)=>s+d.costA,0);
+  const aTrn=aDays.reduce((s,d)=>s+d.atransport,0);
+  const aAlj=aDays.reduce((s,d)=>s+d.aaloj,0);
+  const aCom=aDays.reduce((s,d)=>s+d.acomida,0);
+  const aExt=aDays.reduce((s,d)=>s+d.aextras,0);
+  const aTot4=aTot*4;
+
+  const byCityC={}, byCityA={};
+  cDays.forEach(d=>{if(d.destC&&d.costC>0)byCityC[d.destC]=(byCityC[d.destC]||0)+d.costC;});
+  aDays.forEach(d=>{if(d.destA&&d.costA>0)byCityA[d.destA]=(byCityA[d.destA]||0)+d.costA;});
+  const maxCC=Math.max(...Object.values(byCityC),1);
+  const maxCA=Math.max(...Object.values(byCityA),1);
+  const maxDC=Math.max(...TRIP.map(d=>d.costC),1);
+  const maxDA=Math.max(...TRIP.map(d=>d.costA),1);
+  const bigT=Math.max(cTot,aTot,1);
+
+  const cats=[{ico:'🚌',lbl:'Transporte'},{ico:'🏨',lbl:'Alojamiento'},{ico:'🍽️',lbl:'Comida'},{ico:'🎭',lbl:'Extras'}];
+  const cols=['#9B89FF','var(--orange)','var(--green)','var(--accent)'];
+
+  function catCards(vals,tot){
+    return cats.map((c,i)=>`<div class="cat-card">
+      <div class="cat-ico">${c.ico}</div>
+      <div class="cat-lbl">${c.lbl}</div>
+      <div class="cat-amt" style="color:${cols[i]}">$${vals[i]}</div>
+      <div class="cat-pct">${tot>0?((vals[i]/tot)*100).toFixed(1):0}% del total</div>
+      <div class="cat-bar"><div class="cat-bar-fill" style="width:${tot>0?(vals[i]/tot)*100:0}%;background:${cols[i]}"></div></div>
+    </div>`).join('');
+  }
+  function cityRows(map,max){
+    return Object.entries(map).map(([c,amt])=>{
+      const m=DEST[c]||DEST.TBD;
+      return `<div class="city-row">
+        <div class="city-dot" style="background:${m.color}"></div>
+        <div class="city-nm" style="color:${m.color}">${m.flag} ${c}</div>
+        <div class="city-bar"><div class="city-bar-fill" style="width:${(amt/max)*100}%;background:${m.color};opacity:.72"></div></div>
+        <div class="city-val">$${amt}</div>
+      </div>`;
+    }).join('');
+  }
+  function dayBars(field,destField,max,skipModal){
+    return TRIP.map(d=>{
+      if(d.modal===skipModal)return '';
+      const v=d[field]; const m=DEST[d[destField]||'TBD']||DEST.TBD;
+      return `<div class="ds-row">
+        <div class="ds-d">D${d.day}</div>
+        <div class="ds-bar"><div class="ds-fill" style="width:${max>0?(v/max)*100:0}%;background:${m.color};opacity:.72"></div></div>
+        <div class="ds-v">$${v}</div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('finWrap').innerHTML=`
+  <div class="fin-toggle">
+    <button class="fin-toggle-btn active-c" id="ftgl-carlos" onclick="switchFinPanel('carlos')">🎒 Carlos<br><small style="font-family:'Space Mono',monospace;font-size:.55rem">$${cTot} USD</small></button>
+    <button class="fin-toggle-btn" id="ftgl-amigos" onclick="switchFinPanel('amigos')">🗺️ Amigos (×4)<br><small style="font-family:'Space Mono',monospace;font-size:.55rem">$${aTot4} USD total</small></button>
+  </div>
+
+  <!-- Comparativa -->
+  <div class="compare-row">
+    <div class="cmp-title">⚖️ COMPARATIVA — POR PERSONA</div>
+    <div style="margin-bottom:8px">
+      <div class="cmp-row-lbl"><span class="cmp-lbl" style="color:var(--blue)">🎒 Carlos</span><span class="cmp-v" style="color:var(--blue)">$${cTot}</span></div>
+      <div class="cmp-bar-bg"><div class="cmp-bar-fill" style="width:${(cTot/bigT)*100}%;background:var(--blue)"></div></div>
+    </div>
+    <div>
+      <div class="cmp-row-lbl"><span class="cmp-lbl" style="color:var(--orange)">🗺️ Amigo (c/u)</span><span class="cmp-v" style="color:var(--orange)">$${aTot}</span></div>
+      <div class="cmp-bar-bg"><div class="cmp-bar-fill" style="width:${(aTot/bigT)*100}%;background:var(--orange)"></div></div>
+    </div>
+  </div>
+
+  <!-- CARLOS PANEL -->
+  <div class="fin-panel active" id="fpanel-carlos">
+    <div class="grand-card grand-carlos">
+      <div class="gt-lbl">PRESUPUESTO CARLOS — VIAJE COMPLETO</div>
+      <div class="gt-amt">$${cTot.toLocaleString()}</div>
+      <div class="gt-sub">21 días activos · VZLA → MAD → BCN → ROM → PAR → MAD → VZLA</div>
+    </div>
+    <div class="cat-grid">${catCards([cTrn,cAlj,cCom,cExt],cTot)}</div>
+    <div class="fin-section"><div class="fin-section-title">💸 GASTO POR CIUDAD (CARLOS)</div>${cityRows(byCityC,maxCC)}</div>
+    <div class="fin-section"><div class="fin-section-title">📅 GASTO POR DÍA (CARLOS)</div>${dayBars('costC','destC',maxDC,'solo-amigos')}</div>
+  </div>
+
+  <!-- AMIGOS PANEL -->
+  <div class="fin-panel" id="fpanel-amigos">
+    <div class="grand-card grand-amigos">
+      <div class="gt-lbl">PRESUPUESTO AMIGOS — POR PERSONA</div>
+      <div class="gt-amt">$${aTot.toLocaleString()}</div>
+      <div class="gt-sub">23 días activos · BCN → Valencia → Roma → París → …<br><span style="color:rgba(237,234,224,.45)">*Días 18-24 estimados, pendientes de definir</span></div>
+      <div class="gt-x4">✕ 4 personas = $${aTot4.toLocaleString()} total grupo</div>
+    </div>
+    <div class="cat-grid">${catCards([aTrn,aAlj,aCom,aExt],aTot)}</div>
+    <div class="fin-section"><div class="fin-section-title">💸 GASTO POR CIUDAD (AMIGOS / C/U)</div>${cityRows(byCityA,maxCA)}</div>
+    <div class="fin-section"><div class="fin-section-title">📅 GASTO POR DÍA (AMIGOS / C/U)</div>${dayBars('costA','destA',maxDA,'solo-carlos')}</div>
+  </div>`;
+}
+
+function switchFinPanel(who){
+  document.getElementById('ftgl-carlos').className='fin-toggle-btn'+(who==='carlos'?' active-c':'');
+  document.getElementById('ftgl-amigos').className='fin-toggle-btn'+(who==='amigos'?' active-a':'');
+  document.getElementById('fpanel-carlos').classList.toggle('active',who==='carlos');
+  document.getElementById('fpanel-amigos').classList.toggle('active',who==='amigos');
+}
+
+/* ── CHECKLIST ── */
+function renderChecklistTab(){
+  let total=0,done=0;
+  TRIP.forEach(d=>d.checklist.forEach((_,ci)=>{total++;if(checks[`${d.day}-${ci}`])done++;}));
+  const pct=total>0?Math.round((done/total)*100):0;
+  const C=2*Math.PI*24;
+  document.getElementById('ckMeta').textContent=`${done} / ${total} TAREAS`;
+
+  let html=`<div class="ck-progress">
+    <div class="prog-ring">
+      <svg width="58" height="58" viewBox="0 0 58 58">
+        <circle cx="29" cy="29" r="24" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="4.5"/>
+        <circle cx="29" cy="29" r="24" fill="none" stroke="var(--green)" stroke-width="4.5"
+          stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${(C-(pct/100)*C).toFixed(2)}" stroke-linecap="round"/>
+      </svg>
+      <div class="prog-pct">${pct}%</div>
+    </div>
+    <div class="prog-info">
+      <div class="pi-h">Progreso general</div>
+      <div class="pi-s">${done} de ${total} tareas completadas<br>
+        <span style="color:${pct===100?'var(--green)':'var(--muted)'}">
+          ${pct===100?'¡Todo listo para el viaje! 🎉':'Sigue revisando la lista...'}
+        </span>
+      </div>
+    </div>
+  </div>`;
+
+  TRIP.forEach(d=>{
+    const mc=MODAL_CFG[d.modal]; const m=DEST[d.destC||'TBD']||DEST.TBD;
+    const items=d.checklist.map((t,ci)=>{
+      const k=`${d.day}-${ci}`;
+      return `<div class="cl-item ${checks[k]?'done':''}" data-key="${k}" onclick="toggle('${k}',this)">
+        <div class="chk-box"></div><span class="chk-txt">${t}</span>
+      </div>`;
+    }).join('');
+    const destLbl=d.modal==='solo-amigos'?(d.destA||'Amigos'):(d.destC||'');
+    html+=`<div class="ck-group">
+      <div class="ckg-hd" style="border-left-color:${mc.color}">
+        <span class="ckg-day" style="color:${mc.color}">D${d.day}</span>
+        <span class="ckg-dest">${m.flag} ${destLbl}</span>
+        <span class="ckg-date">${d.date}</span>
+      </div>
+      <div class="ckg-items">${items}</div>
+    </div>`;
+  });
+  document.getElementById('ckWrap').innerHTML=html;
+}
+
+/* ── INTERACTIONS ── */
+function openCard(n){document.getElementById('card-'+n).classList.toggle('open');}
+
+function toggle(key,el){
+  checks[key]=!checks[key];
+  document.querySelectorAll('[data-key="'+key+'"]').forEach(e=>e.classList.toggle('done',checks[key]));
+  save();
+  let t=0,d=0;
+  TRIP.forEach(x=>x.checklist.forEach((_,ci)=>{t++;if(checks[`${x.day}-${ci}`])d++;}));
+  document.getElementById('ckMeta').textContent=`${d} / ${t} TAREAS`;
+  if(document.getElementById('tab-checklist').classList.contains('active')) renderChecklistTab();
+}
+
+const AMIGOS_TOT=TRIP.filter(d=>d.modal!=='solo-carlos').reduce((s,d)=>s+d.costA,0);
+const CARLOS_TOT=TRIP.filter(d=>d.modal!=='solo-amigos').reduce((s,d)=>s+d.costC,0);
+const HDR_LABELS={
+  all:`🌍 Eurotrip '26`,
+  carlos:`💙 $${CARLOS_TOT} Carlos`,
+  amigos:`🧡 $${AMIGOS_TOT} c/amigo`
+};
+
+/* ══════════════════════════════════════════
+   DYNAMIC STAT CHIPS
+══════════════════════════════════════════ */
+// Per-view stats config
+// Carlos flights: days with transport>0 and modal!==solo-amigos and destC contains flight keywords
+// We encode stats directly per view for accuracy
+const STATS = {
+  all: [
+    {ico:'✈️', lbl:'Vuelos tot.', val:'7'},
+    {ico:'🚄', lbl:'Trenes', val:'2'},
+    {ico:'🔀', lbl:'Split', val:'7d'},
+    {ico:'🌍', lbl:'Países', val:'4'},
+    {ico:'🇪🇸', lbl:'BCN', val:'10n'},
+    {ico:'🇮🇹', lbl:'ROM', val:'3n'},
+    {ico:'🇫🇷', lbl:'PAR', val:'4n'},
+  ],
+  carlos: [
+    {ico:'✈️', lbl:'Vuelos', val:'4'},
+    {ico:'🚄', lbl:'Trenes', val:'2'},
+    {ico:'🌍', lbl:'Países', val:'4'},
+    {ico:'🇻🇪', lbl:'VZLA→MAD', val:'D1'},
+    {ico:'🇪🇸', lbl:'BCN', val:'10n'},
+    {ico:'🇮🇹', lbl:'ROM', val:'3n'},
+    {ico:'🇫🇷', lbl:'PAR', val:'4n'},
+    {ico:'🇪🇸', lbl:'MAD', val:'2n'},
+  ],
+  amigos: [
+    {ico:'✈️', lbl:'Vuelos', val:'3'},
+    {ico:'🚄', lbl:'Trenes', val:'1'},
+    {ico:'🌍', lbl:'Países', val:'4'},
+    {ico:'🇪🇸', lbl:'BCN', val:'7n'},
+    {ico:'🇪🇸', lbl:'VLC', val:'3n'},
+    {ico:'🇮🇹', lbl:'ROM', val:'3n'},
+    {ico:'🇫🇷', lbl:'PAR', val:'4n'},
+    {ico:'🇪🇸', lbl:'MAD', val:'3n'},
+  ],
+};
+
+function renderChips(f){
+  const wrap = document.getElementById('statsChips');
+  if(!wrap) return;
+  wrap.innerHTML = STATS[f].map(s=>
+    `<div class="stat-chip">${s.ico} ${s.lbl} <b>${s.val}</b></div>`
+  ).join('');
+}
+
+/* ══════════════════════════════════════════
+   COUNTDOWN
+══════════════════════════════════════════ */
+function renderCountdown(){
+  const el = document.getElementById('cdNums');
+  const bar = document.getElementById('countdownBar');
+  if(!el) return;
+
+  const target = new Date('2026-09-01T00:00:00');
+  const now    = new Date();
+  const diff   = target - now;
+
+  if(diff <= 0){
+    bar.style.borderColor = 'rgba(6,214,160,.35)';
+    el.innerHTML = `<span style="font-size:.9rem;font-weight:800;color:var(--green)">¡El viaje ya comenzó! 🎉</span>`;
+    return;
+  }
+
+  const days  = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins  = Math.floor((diff % 3600000)  / 60000);
+
+  function unit(val, lbl){
+    return `<div style="text-align:center">
+      <div style="font-family:'Space Mono',monospace;font-size:1.35rem;font-weight:700;color:var(--accent);line-height:1">${String(val).padStart(2,'0')}</div>
+      <div style="font-size:.48rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:2px">${lbl}</div>
+    </div>`;
+  }
+  function sep(){
+    return `<div style="font-family:'Space Mono',monospace;font-size:1.1rem;color:var(--muted);padding-bottom:6px">:</div>`;
+  }
+
+  el.innerHTML = unit(days,'días') + sep() + unit(hours,'horas') + sep() + unit(mins,'min');
+  // Update every minute
+}
+
+/* ══════════════════════════════════════════ */
+
+let currentFilter='all';
+function setFilter(f,btn){
+  if(currentFilter===f)return;
+  currentFilter=f;
+  const titles={all:'Todos los días',carlos:'Ruta Carlos (21 días)',amigos:'Ruta Amigos (23 días)'};
+  const metas={all:'24 DÍAS · 4 PAÍSES',carlos:'21 DÍAS · 4 PAÍSES',amigos:'23 DÍAS · 4 PAÍSES'};
+  document.getElementById('itin-title').textContent=titles[f];
+  document.getElementById('itin-meta').textContent=metas[f];
+  document.getElementById('hdrBudget').textContent=HDR_LABELS[f];
+  ['all','carlos','amigos'].forEach(x=>{
+    document.getElementById('ftab-'+x).className='ftab'+(x===f?' active-'+x:'');
+  });
+  const wrap=document.getElementById('cardsWrap');
+  wrap.className='cards-wrap vw-'+f;
+  document.querySelectorAll('.day-card').forEach(card=>{
+    const m=card.dataset.modal;
+    let show=true;
+    if(f==='carlos') show=m!=='solo-amigos';
+    if(f==='amigos') show=m!=='solo-carlos';
+    card.classList.toggle('hidden',!show);
+  });
+  renderChips(f);
+}
+
+let currentTab='itinerario';
+function switchTab(name,btn){
+  if(currentTab===name)return;
+  currentTab=name;
+  document.querySelectorAll('.tab-view').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(name==='checklist') renderChecklistTab();
+  if(name==='finanzas') setTimeout(drawChart,80);
+  // FAB only on itinerario
+  const fab=document.getElementById('editorFab');
+  if(fab) fab.style.display = name==='itinerario'?'flex':'none';
+}
+
+function navMap(e,place){e.stopPropagation();if(place)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(place),'_blank');}
+
+const TICKET_TIPS={
+  2:'🚄 AVE Madrid→BCN. Reserva tarifa Promo con antelación.',
+  8:'📋 Check-in vuelo BCN→ROM abre 48h antes. Revisa dimensiones mochila.',
+  11:'✈️ BCN→ROM. Mochila 40×20×25 max. Llega 2h antes al aeropuerto.',
+  14:'✈️ Lowcost ROM→PAR. Check-in online obligatorio. Sin maleta facturada.',
+  18:'✈️ PAR→BCN. Confirma terminal de salida con Vueling.',
+  19:'🚄 AVE/Iryo BCN→MAD. Recoge maleta 23kg del depósito primero.',
+  21:'✈️ MAD→VZLA T4/T1 Barajas. 3.5h antes = salida 09:30 AM. ¡No llegues tarde!',
+};
+function ticket(e,day){e.stopPropagation();showToast(TICKET_TIPS[day]||'🎫 Revisa: Vueling, Ryanair, Renfe, Airbnb');}
+
+let toastT;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+/* ══════════════════════════════════════════
+   CURRENCY CONVERTER
+══════════════════════════════════════════ */
+const CURRENCIES = {
+  USD:{ flag:'🇺🇸', name:'USD' },
+  EUR:{ flag:'🇪🇺', name:'EUR' },
+  GBP:{ flag:'🇬🇧', name:'GBP' },
+  VES:{ flag:'🇻🇪', name:'VES' },
+};
+let convRates = {}; // USD base
+let convFrom='USD', convTo='EUR';
+
+async function fetchRates(){
+  try {
+    const r = await fetch('https://open.er-api.com/v6/latest/USD');
+    const j = await r.json();
+    convRates = j.rates;
+    const rate = (convRates[convTo]/convRates[convFrom]).toFixed(4);
+    document.getElementById('convRatePill').textContent = `1 ${convFrom} = ${rate} ${convTo}`;
+    document.getElementById('convUpdated').textContent = `✓ Actualizado · ${new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})}`;
+    convertCurrency('A');
+  } catch(e) {
+    // fallback rate
+    convRates = { USD:1, EUR:0.92, GBP:0.79, VES:36.5 };
+    document.getElementById('convRatePill').textContent = `~estimado`;
+    document.getElementById('convUpdated').textContent = `⚠ Sin conexión — usando tasa estimada`;
+    convertCurrency('A');
+  }
+}
+
+function convertCurrency(side){
+  if(!convRates.USD) return;
+  const inUSD_from = 1/convRates[convFrom];
+  const inUSD_to   = 1/convRates[convTo];
+  const rate = convRates[convTo] / convRates[convFrom];
+  if(side==='A'){
+    const val = parseFloat(document.getElementById('convA').value)||0;
+    document.getElementById('convB').value = (val*rate).toFixed(2);
+  } else {
+    const val = parseFloat(document.getElementById('convB').value)||0;
+    document.getElementById('convA').value = (val/rate).toFixed(2);
+  }
+  document.getElementById('convRatePill').textContent = `1 ${convFrom} = ${rate.toFixed(4)} ${convTo}`;
+}
+
+function swapCurrency(){
+  [convFrom, convTo] = [convTo, convFrom];
+  document.getElementById('flagA').textContent  = CURRENCIES[convFrom].flag;
+  document.getElementById('flagB').textContent  = CURRENCIES[convTo].flag;
+  document.getElementById('labelA').textContent = CURRENCIES[convFrom].name;
+  document.getElementById('labelB').textContent = CURRENCIES[convTo].name;
+  convertCurrency('A');
+}
+
+/* ══════════════════════════════════════════
+   WEEKLY CHART (vanilla canvas)
+══════════════════════════════════════════ */
+let chartView = 'carlos';
+
+function buildWeekData(){
+  // Group days into 4 weeks, accumulate spend
+  const weeks = ['S1 (1-7)', 'S2 (8-14)', 'S3 (15-21)', 'S4 (22-24)'];
+  const ranges = [[1,7],[8,14],[15,21],[22,24]];
+
+  const cAcc=[], aAcc=[];
+  let cSum=0, aSum=0;
+  ranges.forEach(([s,e])=>{
+    TRIP.filter(d=>d.day>=s&&d.day<=e).forEach(d=>{
+      if(d.modal!=='solo-amigos') cSum+=d.costC;
+      if(d.modal!=='solo-carlos') aSum+=d.costA;
+    });
+    cAcc.push(cSum);
+    aAcc.push(aSum);
+  });
+  return { weeks, cAcc, aAcc };
+}
+
+function drawChart(){
+  const canvas = document.getElementById('weekChart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio||1;
+  const W = canvas.offsetWidth, H = 160;
+  canvas.width  = W*dpr; canvas.height = H*dpr;
+  ctx.scale(dpr,dpr);
+
+  const { weeks, cAcc, aAcc } = buildWeekData();
+
+  // choose which series to draw
+  const series = [];
+  if(chartView==='carlos'||chartView==='both') series.push({ data:cAcc, color:'#4FC3F7', label:'Carlos' });
+  if(chartView==='amigos'||chartView==='both') series.push({ data:aAcc, color:'#FF7849', label:'c/Amigo' });
+
+  const maxVal = Math.max(...series.flatMap(s=>s.data), 1);
+  const pad = { t:10, r:10, b:30, l:46 };
+  const gW = W - pad.l - pad.r;
+  const gH = H - pad.t - pad.b;
+
+  ctx.clearRect(0,0,W,H);
+
+  // grid lines
+  const gridSteps = 4;
+  ctx.strokeStyle = 'rgba(255,255,255,.05)';
+  ctx.lineWidth = 1;
+  for(let i=0;i<=gridSteps;i++){
+    const y = pad.t + gH - (i/gridSteps)*gH;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+gW,y); ctx.stroke();
+    // y labels
+    ctx.fillStyle='rgba(237,234,224,.3)';
+    ctx.font=`${10}px 'Space Mono',monospace`;
+    ctx.textAlign='right';
+    ctx.fillText('$'+(Math.round((i/gridSteps)*maxVal/10)*10), pad.l-5, y+4);
+  }
+
+  // x labels
+  ctx.fillStyle='rgba(237,234,224,.35)'; ctx.font=`${9}px 'Syne',sans-serif`; ctx.textAlign='center';
+  weeks.forEach((w,i)=>{
+    const x = pad.l + (i/(weeks.length-1))*gW;
+    ctx.fillText(w, x, H-8);
+  });
+
+  // draw lines + dots
+  series.forEach(s=>{
+    // area fill
+    ctx.beginPath();
+    s.data.forEach((v,i)=>{
+      const x = pad.l + (i/(s.data.length-1))*gW;
+      const y = pad.t + gH - (v/maxVal)*gH;
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.lineTo(pad.l+gW, pad.t+gH);
+    ctx.lineTo(pad.l, pad.t+gH);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0,pad.t,0,pad.t+gH);
+    grad.addColorStop(0, s.color.replace(')',',0.18)').replace('rgb','rgba').replace('#','').length>6
+      ? s.color+'30' : s.color+'30');
+    grad.addColorStop(1,'transparent');
+    // simple alpha fill
+    ctx.fillStyle = s.color+'22';
+    ctx.fill();
+
+    // line
+    ctx.beginPath();
+    s.data.forEach((v,i)=>{
+      const x = pad.l + (i/(s.data.length-1))*gW;
+      const y = pad.t + gH - (v/maxVal)*gH;
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.stroke();
+
+    // dots + value labels
+    s.data.forEach((v,i)=>{
+      const x = pad.l + (i/(s.data.length-1))*gW;
+      const y = pad.t + gH - (v/maxVal)*gH;
+      ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);
+      ctx.fillStyle=s.color; ctx.fill();
+      ctx.strokeStyle='#09090F'; ctx.lineWidth=1.5; ctx.stroke();
+      // value
+      ctx.fillStyle=s.color;
+      ctx.font=`bold ${9}px 'Space Mono',monospace`;
+      ctx.textAlign='center';
+      ctx.fillText('$'+v, x, y-9);
+    });
+  });
+
+  // legend
+  const leg = document.getElementById('chartLegend');
+  leg.innerHTML = series.map(s=>
+    `<div class="chart-legend-item"><div class="chart-legend-dot" style="background:${s.color}"></div>${s.label}</div>`
+  ).join('');
+}
+
+function setChartView(v){
+  chartView=v;
+  ['carlos','amigos','both'].forEach(x=>{
+    const el=document.getElementById('ctog-'+x);
+    el.className='chart-tog-btn'+(x===v?' on-'+(v==='both'?'c':v.charAt(0)):'');
+  });
+  drawChart();
+}
+
+/* ══════════════════════════════════════════
+   EDITOR
+══════════════════════════════════════════ */
+let edDay = 1;
+
+function openEditor(){
+  // Build day chips
+  const wrap = document.getElementById('edDaySelect');
+  wrap.innerHTML = TRIP.map(d=>
+    `<button class="ed-day-chip${d.day===edDay?' active':''}" onclick="selectEdDay(${d.day})">D${d.day}</button>`
+  ).join('');
+  renderEditorForm();
+  document.getElementById('editorOverlay').classList.add('open');
+  // Hide FAB
+  document.getElementById('editorFab').style.display='none';
+}
+
+function closeEditor(){
+  document.getElementById('editorOverlay').classList.remove('open');
+  document.getElementById('editorFab').style.display='flex';
+}
+
+function overlayClose(e){
+  if(e.target===document.getElementById('editorOverlay')) closeEditor();
+}
+
+function selectEdDay(n){
+  edDay=n;
+  document.querySelectorAll('.ed-day-chip').forEach(c=>{
+    c.classList.toggle('active', parseInt(c.textContent.replace('D',''))===n);
+  });
+  renderEditorForm();
+}
+
+function renderEditorForm(){
+  const d = TRIP.find(x=>x.day===edDay);
+  if(!d) return;
+  const mc = MODAL_CFG[d.modal];
+  const destKeys = Object.keys(DEST);
+
+  document.getElementById('editorForm').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;padding:2px 0 6px">
+      <span style="font-size:1.1rem">${(DEST[d.destC]||DEST.TBD).flag}</span>
+      <div>
+        <div style="font-size:.85rem;font-weight:800">Día ${d.day} · ${d.date}</div>
+        <div style="font-size:.62rem;color:${mc.color}">${mc.label}</div>
+      </div>
+    </div>
+
+    <div class="ed-field">
+      <div class="ed-label">Actividad / Descripción</div>
+      <input class="ed-input" id="ed-activity" value="${d.activity}" type="text">
+    </div>
+
+    <div class="ed-field-row">
+      <div class="ed-field">
+        <div class="ed-label">Destino Carlos</div>
+        <select class="ed-input" id="ed-destC">
+          ${destKeys.map(k=>`<option value="${k}"${k===d.destC?' selected':''}>${(DEST[k].flag)} ${k}</option>`).join('')}
+        </select>
+      </div>
+      <div class="ed-field">
+        <div class="ed-label">Destino Amigos</div>
+        <select class="ed-input" id="ed-destA">
+          <option value="null"${!d.destA?' selected':''}>— N/A —</option>
+          ${destKeys.map(k=>`<option value="${k}"${k===d.destA?' selected':''}>${(DEST[k].flag)} ${k}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--blue);margin-bottom:2px">💙 Costos Carlos (USD)</div>
+    <div class="ed-field-row">
+      <div class="ed-field"><div class="ed-label">🚌 Transporte</div><input class="ed-input num" id="ed-transport" type="number" inputmode="decimal" value="${d.transport}"></div>
+      <div class="ed-field"><div class="ed-label">🏨 Alojamiento</div><input class="ed-input num" id="ed-aloj" type="number" inputmode="decimal" value="${d.aloj}"></div>
+    </div>
+    <div class="ed-field-row">
+      <div class="ed-field"><div class="ed-label">🍽️ Comida</div><input class="ed-input num" id="ed-comida" type="number" inputmode="decimal" value="${d.comida}"></div>
+      <div class="ed-field"><div class="ed-label">🎭 Extras</div><input class="ed-input num" id="ed-extras" type="number" inputmode="decimal" value="${d.extras}"></div>
+    </div>
+
+    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--orange);margin-bottom:2px;margin-top:4px">🧡 Costos Amigos c/persona (USD)</div>
+    <div class="ed-field-row">
+      <div class="ed-field"><div class="ed-label">🚌 Transporte</div><input class="ed-input num" id="ed-atransport" type="number" inputmode="decimal" value="${d.atransport}"></div>
+      <div class="ed-field"><div class="ed-label">🏨 Alojamiento</div><input class="ed-input num" id="ed-aaloj" type="number" inputmode="decimal" value="${d.aaloj}"></div>
+    </div>
+    <div class="ed-field-row">
+      <div class="ed-field"><div class="ed-label">🍽️ Comida</div><input class="ed-input num" id="ed-acomida" type="number" inputmode="decimal" value="${d.acomida}"></div>
+      <div class="ed-field"><div class="ed-label">🎭 Extras</div><input class="ed-input num" id="ed-aextras" type="number" inputmode="decimal" value="${d.aextras}"></div>
+    </div>
+
+    <button class="ed-save" onclick="saveDay()">💾 Guardar Cambios</button>
+    <div class="ed-note">Los cambios se guardan en este dispositivo.<br>El checklist no se edita aquí.</div>
+  `;
+}
+
+function saveDay(){
+  const d = TRIP.find(x=>x.day===edDay);
+  if(!d) return;
+
+  const get = id => document.getElementById(id);
+  const num = id => Math.max(0, parseFloat(get(id).value)||0);
+
+  d.activity   = get('ed-activity').value.trim() || d.activity;
+  d.destC      = get('ed-destC').value;
+  const da     = get('ed-destA').value;
+  d.destA      = da==='null' ? null : da;
+
+  d.transport  = num('ed-transport');
+  d.aloj       = num('ed-aloj');
+  d.comida     = num('ed-comida');
+  d.extras     = num('ed-extras');
+  d.costC      = d.transport + d.aloj + d.comida + d.extras;
+
+  d.atransport = num('ed-atransport');
+  d.aaloj      = num('ed-aaloj');
+  d.acomida    = num('ed-acomida');
+  d.aextras    = num('ed-aextras');
+  d.costA      = d.atransport + d.aaloj + d.acomida + d.aextras;
+
+  // Persist edits
+  try {
+    const edits = JSON.parse(localStorage.getItem('eurotrip26_edits')||'{}');
+    edits[edDay] = { activity:d.activity, destC:d.destC, destA:d.destA,
+      transport:d.transport,aloj:d.aloj,comida:d.comida,extras:d.extras,costC:d.costC,
+      atransport:d.atransport,aaloj:d.aaloj,acomida:d.acomida,aextras:d.aextras,costA:d.costA };
+    localStorage.setItem('eurotrip26_edits', JSON.stringify(edits));
+  } catch(e){}
+
+  // Re-render everything
+  renderCards();
+  renderFinance();
+  drawChart();
+  closeEditor();
+  showToast(`✅ Día ${edDay} actualizado — Total Carlos: $${d.costC}`);
+}
+
+function loadSavedEdits(){
+  try {
+    const edits = JSON.parse(localStorage.getItem('eurotrip26_edits')||'{}');
+    Object.entries(edits).forEach(([day,vals])=>{
+      const d = TRIP.find(x=>x.day===parseInt(day));
+      if(d) Object.assign(d,vals);
+    });
+  } catch(e){}
+}
+
+(function init(){
+  loadSavedEdits();
+  renderCards(); renderFinance();
+  renderChips('all');
+  renderCountdown();
+  setInterval(renderCountdown, 60000); // update every minute
+  let t=0,d=0;
+  TRIP.forEach(x=>x.checklist.forEach((_,ci)=>{t++;if(checks[`${x.day}-${ci}`])d++;}));
+  document.getElementById('ckMeta').textContent=`${d} / ${t} TAREAS`;
+  fetchRates();
+  setTimeout(drawChart, 100);
+  setTimeout(()=>{const b=document.getElementById('loadBar');if(b)b.style.display='none';},900);
+  window.addEventListener('resize',()=>{ if(chartView) drawChart(); });
+})();
+</script>
+</body>
+</html>
